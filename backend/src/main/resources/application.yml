@@ -11,3 +11,8 @@ spring:
     open-in-view: false
 server:
   port: 8080
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:local-development-secret-change-this-32-bytes-minimum}
+    ttl-minutes: ${APP_JWT_TTL_MINUTES:60}
