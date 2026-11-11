@@ -7,6 +7,7 @@ A Java 21, Spring Boot and PostgreSQL learning project. This is a demo applicati
 - PostgreSQL persistence with Spring Data JPA
 - Request validation and centralized API errors
 - Docker Compose for local PostgreSQL
+- JWT bearer-token authentication with BCrypt password hashing
 
 See `docs/architecture.md` for the initial design. See `backend/` for the Spring Boot application.
 
@@ -15,15 +16,18 @@ See `docs/architecture.md` for the initial design. See `backend/` for the Spring
 Prerequisites: Docker Desktop, Java 21, and Maven 3.9+.
 
 1. Start PostgreSQL: `docker compose up -d`
-2. Run the API: `cd backend && mvn spring-boot:run`
-3. API base URL: `http://localhost:8080`
+2. Set `APP_JWT_SECRET` to a securely generated secret of at least 32 bytes.
+3. Run the API: `cd backend && mvn spring-boot:run`
+4. API base URL: `http://localhost:8080`
 
-The API reads database settings from environment variables. Defaults are intended only for local development; do not reuse them in a deployed environment.
+The API reads database and JWT settings from environment variables. The default JWT signing secret is for local development only. Never commit production secrets.
 
 ## API endpoints
 
 | Method | Endpoint | Purpose |
 |---|---|---|
+| POST | `/api/v1/auth/register` | Register a patient account |
+| POST | `/api/v1/auth/login` | Login and receive a JWT |
 | POST | `/api/v1/patients` | Create a patient |
 | GET | `/api/v1/patients` | List patients |
 | GET | `/api/v1/patients/{id}` | Get a patient |
@@ -33,12 +37,16 @@ The API reads database settings from environment variables. Defaults are intende
 | GET | `/api/v1/appointments` | List appointments |
 | GET | `/api/v1/appointments/{id}` | Get an appointment |
 
-Patient requests require first name, last name, date of birth in the past, and a valid email. Appointment requests require an existing patient, a present/future appointment time, and a reason. Validation failures return HTTP 400; missing resources return 404; duplicate/conflicting data returns 409.
+## Authentication
+
+Register with `POST /api/v1/auth/register` using JSON fields `email` and `password` (12–72 characters). Login uses the same fields. Both return an access token; send it as `Authorization: Bearer <token>` on protected API calls. Passwords are stored as BCrypt hashes. Tokens expire after 60 minutes by default; configure with `APP_JWT_TTL_MINUTES`. Set `APP_JWT_SECRET` to a private secret of at least 32 bytes.
+
+Public self-registration always assigns the `PATIENT` role and cannot assign elevated roles. Role claims and authenticated access are in place, but administrator/clinician provisioning, patient-to-record ownership rules, refresh tokens, rate limiting, and account recovery are not implemented yet.
 
 ## Tests
 
-Run `cd backend && mvn test`. Integration tests use the configured PostgreSQL database and cover patient creation/retrieval, request validation, duplicate email handling, appointment creation, and missing-patient responses.
+Run `cd backend && mvn test`. Integration tests use PostgreSQL and cover patient creation/retrieval, request validation, duplicate email handling, appointment creation, missing-patient responses, login, and rejection of unauthenticated requests.
 
 ## Safety
 
-This is a learning/demo project, not a clinical system. Use synthetic data only. It has no authentication, authorization, audit trail, encryption policy, or production hardening and must not be used to store real patient information.
+This is a learning/demo project, not a clinical system. Use synthetic data only. It has no production security review, complete authorization/ownership controls, audit trail, or clinical validation and must not store real patient information.
